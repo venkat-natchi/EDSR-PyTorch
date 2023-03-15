@@ -129,15 +129,7 @@ class Trainer():
         torch.set_grad_enabled(True)
 
     def prepare(self, *args):
-        if self.args.cpu:
-            device = torch.device('cpu')
-        else:
-            if torch.backends.mps.is_available():
-                device = torch.device('mps')
-            elif torch.cuda.is_available():
-                device = torch.device('cuda')
-            else:
-                device = torch.device('cpu')
+        device = torch.device('cpu' if self.args.cpu else 'cuda')
         def _prepare(tensor):
             if self.args.precision == 'half': tensor = tensor.half()
             return tensor.to(device)

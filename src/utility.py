@@ -41,13 +41,6 @@ class timer():
     def reset(self):
         self.acc = 0
 
-def bg_target(queue):
-    while True:
-        if not queue.empty():
-            filename, tensor = queue.get()
-            if filename is None: break
-            imageio.imwrite(filename, tensor.numpy())
-
 class checkpoint():
     def __init__(self, args):
         self.args = args
@@ -130,13 +123,19 @@ class checkpoint():
             plt.savefig(self.get_path('test_{}.pdf'.format(d)))
             plt.close(fig)
 
-    
+    @staticmethod
+    def bg_target(queue):
+        while True:
+            if not queue.empty():
+                filename, tensor = queue.get()
+                if filename is None: break
+                imageio.imwrite(filename, tensor.numpy())
 
     def begin_background(self):
         self.queue = Queue()
-
+        
         self.process = [
-            Process(target=bg_target, args=(self.queue,)) \
+            Process(target=self.bg_target, args=(self.queue,)) \
             for _ in range(self.n_processes)
         ]
         
@@ -156,9 +155,10 @@ class checkpoint():
 
             postfix = ('SR', 'LR', 'HR')
             for v, p in zip(save_list, postfix):
-                normalized = v[0].mul(255 / self.args.rgb_range)
-                tensor_cpu = normalized.byte().permute(1, 2, 0).cpu()
-                self.queue.put(('{}{}.png'.format(filename, p), tensor_cpu))
+                if v.dim() > 1:
+                    normalized = v[0].mul(255 / self.args.rgb_range)
+                    tensor_cpu = normalized.byte().permute(1, 2, 0).cpu()
+                    self.queue.put(('{}{}.png'.format(filename, p), tensor_cpu))
 
 def quantize(img, rgb_range):
     pixel_range = 255 / rgb_range
